@@ -23,15 +23,16 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Check flight price
+     - name: Check flight price
         env:
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          SERPAPI_KEY: ${{ secrets.SERPAPI_KEY }}
           FLIGHT_ORIGIN: "CDG"
-          FLIGHT_DESTINATION: "SSA"
-          FLIGHT_DATE: "2026-12-17"
-          FLIGHT_MAX_PRICE: "600"
+          FLIGHT_DESTINATION: "GRU"
+          FLIGHT_DATE: "2026-12-20"
+          FLIGHT_MAX_PRICE: "700"
         run: python scripts/check_price.py
-
+        
       - name: Commit updated price state
         run: |
           git config user.name "flight-price-bot"

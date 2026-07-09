@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Bot de surveillance de prix de vol.
+Bot de surveillance de prix de vol, basé sur l'API Google Flights de SerpApi.
 Compare le prix actuel au dernier prix connu et notifie via ntfy.sh
 si le prix a baissé ou passe sous un seuil défini.
 """
@@ -11,16 +11,16 @@ import sys
 from pathlib import Path
 
 import requests
-from fast_flights import FlightData, Passengers, Result, get_flights
 
 # ---------- CONFIGURATION (à adapter) ----------
 ORIGIN = os.environ.get("FLIGHT_ORIGIN", "CDG")
 DESTINATION = os.environ.get("FLIGHT_DESTINATION", "GRU")
 DEPARTURE_DATE = os.environ.get("FLIGHT_DATE", "2026-12-20")
-RETURN_DATE = os.environ.get("FLIGHT_RETURN_DATE")  # None = aller simple
+RETURN_DATE = os.environ.get("FLIGHT_RETURN_DATE")  # vide/absent = aller simple
 MAX_PRICE_EUR = float(os.environ.get("FLIGHT_MAX_PRICE", "700"))
-SEAT_CLASS = os.environ.get("FLIGHT_SEAT_CLASS", "economy")
+CURRENCY = os.environ.get("FLIGHT_CURRENCY", "EUR")
 
+SERPAPI_KEY = os.environ["SERPAPI_KEY"]  # obligatoire, via secret GitHub
 NTFY_TOPIC = os.environ["NTFY_TOPIC"]  # obligatoire, via secret GitHub
 NTFY_URL = f"https://ntfy.sh/{NTFY_TOPIC}"
 
@@ -29,26 +29,38 @@ STATE_FILE = Path(__file__).parent.parent / "state" / "last_price.json"
 
 
 def get_current_price() -> float | None:
-    """Interroge Google Flights via fast-flights et renvoie le prix le plus bas trouvé."""
-    flight_data = [FlightData(date=DEPARTURE_DATE, from_airport=ORIGIN, to_airport=DESTINATION)]
+    """Interroge l'API Google Flights de SerpApi et renvoie le prix le plus bas trouvé."""
+    params = {
+        "engine": "google_flights",
+        "departure_id": ORIGIN,
+        "arrival_id": DESTINATION,
+        "outbound_date": DEPARTURE_DATE,
+        "currency": CURRENCY,
+        "hl": "fr",
+        "type": "1" if RETURN_DATE else "2",  # 1 = aller-retour, 2 = aller simple
+        "api_key": SERPAPI_KEY,
+    }
     if RETURN_DATE:
-        flight_data.append(FlightData(date=RETURN_DATE, from_airport=DESTINATION, to_airport=ORIGIN))
+        params["return_date"] = RETURN_DATE
 
-    result: Result = get_flights(
-        flight_data=flight_data,
-        trip="round-trip" if RETURN_DATE else "one-way",
-        seat=SEAT_CLASS,
-        passengers=Passengers(adults=1, children=0, infants_in_seat=0, infants_on_lap=0),
-        fetch_mode="fallback",
-    )
+    try:
+        response = requests.get("https://serpapi.com/search.json", params=params, timeout=30)
+        response.raise_for_status()
+        data = response.json()
+    except requests.RequestException as e:
+        print(f"Erreur réseau lors de l'appel à SerpApi: {e}")
+        return None
 
-    prices = []
-    for flight in result.flights:
-        try:
-            price_str = flight.price.replace("€", "").replace(",", "").strip()
-            prices.append(float(price_str))
-        except (ValueError, AttributeError):
-            continue
+    if data.get("search_metadata", {}).get("status") != "Success":
+        print(f"SerpApi n'a pas retourné un statut Success: {data.get('search_metadata')}")
+        if "error" in data:
+            print(f"Erreur SerpApi: {data['error']}")
+        return None
+
+    all_flights = data.get("best_flights", []) + data.get("other_flights", [])
+    print(f"Nombre d'options de vol trouvées: {len(all_flights)}")
+
+    prices = [f["price"] for f in all_flights if "price" in f]
 
     return min(prices) if prices else None
 
@@ -85,7 +97,7 @@ def main() -> None:
         sys.exit(0)
 
     last_price = load_last_price()
-    print(f"Prix actuel: {current_price}€ | Dernier prix connu: {last_price}€")
+    print(f"Prix actuel: {current_price}{CURRENCY} | Dernier prix connu: {last_price}{CURRENCY}")
 
     should_notify = False
     title = ""
@@ -95,12 +107,12 @@ def main() -> None:
     if current_price <= MAX_PRICE_EUR:
         should_notify = True
         title = "✈️ Prix sous ton seuil !"
-        message = f"{ORIGIN} → {DESTINATION} le {DEPARTURE_DATE} : {current_price}€ (seuil: {MAX_PRICE_EUR}€)"
+        message = f"{ORIGIN} → {DESTINATION} le {DEPARTURE_DATE} : {current_price}{CURRENCY} (seuil: {MAX_PRICE_EUR}{CURRENCY})"
         priority = "high"
     elif last_price is not None and current_price < last_price:
         should_notify = True
         title = "📉 Le prix a baissé"
-        message = f"{ORIGIN} → {DESTINATION} le {DEPARTURE_DATE} : {current_price}€ (contre {last_price}€ avant)"
+        message = f"{ORIGIN} → {DESTINATION} le {DEPARTURE_DATE} : {current_price}{CURRENCY} (contre {last_price}{CURRENCY} avant)"
 
     if should_notify:
         notify(title, message, priority)

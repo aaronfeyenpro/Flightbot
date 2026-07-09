@@ -33,14 +33,10 @@ jobs:
           FLIGHT_MAX_PRICE: "1350"
         run: python scripts/check_price.py
 
-      - name: Commit updated price state
+      - name: Commit updated price state and status page
         run: |
           git config user.name "flight-price-bot"
           git config user.email "bot@users.noreply.github.com"
-          if [ -f state/last_price.json ]; then
-            git add state/last_price.json
-            git diff --staged --quiet || git commit -m "Update last known price [skip ci]"
-            git push
-          else
-            echo "Aucun fichier d'état à commit (pas de prix trouvé ce run)."
-          fi
+          git add state/last_price.json docs/index.html 2>/dev/null || true
+          git diff --staged --quiet || git commit -m "Update price and status page [skip ci]"
+          git push

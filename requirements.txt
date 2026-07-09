@@ -1,5 +1,4 @@
 fast-flights
 requests
 typing_extensions
-protobuffast-flights
-requests
+protobuf

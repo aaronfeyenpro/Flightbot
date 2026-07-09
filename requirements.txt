@@ -1,4 +1,4 @@
-fast-flights
+fast-flights==2.2
 requests
 typing_extensions
 protobuf

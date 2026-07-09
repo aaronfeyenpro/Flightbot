@@ -27,7 +27,7 @@ jobs:
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
           SERPAPI_KEY: ${{ secrets.SERPAPI_KEY }}
           FLIGHT_ORIGIN: "CDG"
-          FLIGHT_DESTINATION: "GRU"
+          FLIGHT_DESTINATION: "SSA"
           FLIGHT_DATE: "2026-12-17"
           FLIGHT_RETURN_DATE: "2027-01-04"
           FLIGHT_MAX_PRICE: "1350"

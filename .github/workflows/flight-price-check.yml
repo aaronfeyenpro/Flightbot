@@ -27,9 +27,9 @@ jobs:
         env:
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
           FLIGHT_ORIGIN: "CDG"
-          FLIGHT_DESTINATION: "GRU"
-          FLIGHT_DATE: "2026-12-20"
-          FLIGHT_MAX_PRICE: "700"
+          FLIGHT_DESTINATION: "SSA"
+          FLIGHT_DATE: "2026-12-17"
+          FLIGHT_MAX_PRICE: "600"
         run: python scripts/check_price.py
 
       - name: Commit updated price state

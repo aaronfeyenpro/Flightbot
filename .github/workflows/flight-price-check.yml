@@ -2,12 +2,11 @@ name: Flight Price Check
 
 on:
   schedule:
-    # Toutes les 6h — ajuste selon tes besoins (attention aux limites de Google Flights si trop fréquent)
     - cron: "0 */6 * * *"
-  workflow_dispatch: {} # permet de lancer manuellement depuis l'onglet Actions
+  workflow_dispatch: {}
 
 permissions:
-  contents: write # nécessaire pour commit le fichier d'état
+  contents: write
 
 jobs:
   check-price:
@@ -23,7 +22,7 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-     - name: Check flight price
+      - name: Check flight price
         env:
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
           SERPAPI_KEY: ${{ secrets.SERPAPI_KEY }}
@@ -32,11 +31,15 @@ jobs:
           FLIGHT_DATE: "2026-12-20"
           FLIGHT_MAX_PRICE: "700"
         run: python scripts/check_price.py
-        
+
       - name: Commit updated price state
         run: |
           git config user.name "flight-price-bot"
           git config user.email "bot@users.noreply.github.com"
-          git add state/last_price.json
-          git diff --staged --quiet || git commit -m "Update last known price [skip ci]"
-          git push
+          if [ -f state/last_price.json ]; then
+            git add state/last_price.json
+            git diff --staged --quiet || git commit -m "Update last known price [skip ci]"
+            git push
+          else
+            echo "Aucun fichier d'état à commit (pas de prix trouvé ce run)."
+          fi

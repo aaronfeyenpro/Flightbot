@@ -2,7 +2,7 @@ name: Flight Price Check
 
 on:
   schedule:
-    - cron: "0 */6 * * *"
+    - cron: "0 8 * * *"
   workflow_dispatch: {}
 
 permissions:
@@ -31,6 +31,7 @@ jobs:
           FLIGHT_DATE: "2026-12-17"
           FLIGHT_RETURN_DATE: "2027-01-04"
           FLIGHT_MAX_PRICE: "1350"
+          FLIGHT_FLEX_DAYS: "2"
         run: python scripts/check_price.py
 
       - name: Commit updated price state and status page
